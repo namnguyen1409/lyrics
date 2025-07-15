@@ -71,7 +71,7 @@ function LyricsSynchronizer() {
   const lyricItemVariants = {
     inactive: { 
       scale: 1, 
-      opacity: 0.7,
+      opacity: 0.8,
       backgroundColor: 'rgba(255, 255, 255, 0.05)'
     },
     active: { 
