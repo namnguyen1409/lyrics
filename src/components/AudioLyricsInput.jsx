@@ -146,7 +146,9 @@ function AudioLyricsInput() {
                   </div>
                 }
                 className="bg-white/10 backdrop-blur-lg border-white/20"
-                headStyle={{ backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.1)' }}
+                styles={{
+                  header: { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.1)' }
+                }}
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Form.Item
@@ -184,7 +186,9 @@ function AudioLyricsInput() {
                   </div>
                 }
                 className="bg-white/10 backdrop-blur-lg border-white/20"
-                headStyle={{ backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.1)' }}
+                styles={{
+                  header: { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.1)' }
+                }}
               >
                 <Upload.Dragger
                   beforeUpload={handleAudioUpload}
@@ -270,7 +274,9 @@ function AudioLyricsInput() {
                   </div>
                 }
                 className="bg-white/10 backdrop-blur-lg border-white/20"
-                headStyle={{ backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.1)' }}
+                styles={{
+                  header: { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.1)' }
+                }}
               >
                 <Form.Item
                   name="lyrics"

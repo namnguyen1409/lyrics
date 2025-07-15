@@ -109,12 +109,14 @@ function HomePage() {
                 <motion.div variants={cardHoverVariants}>
                   <Card
                     className="h-full bg-white/10 backdrop-blur-lg border-white/20 !border-opacity-20"
-                    bodyStyle={{ 
-                      padding: '2rem',
-                      height: '100%',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between'
+                    styles={{
+                      body: {
+                        padding: '2rem',
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between'
+                      }
                     }}
                   >
                     <div className="text-center">
