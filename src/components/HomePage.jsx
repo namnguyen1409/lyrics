@@ -99,82 +99,86 @@ function HomePage() {
         </motion.div>
 
         {/* Features Grid */}
-        <Row gutter={[32, 32]} justify="center">
-          {features.map((feature, index) => (
-            <Col key={index} xs={24} md={12} lg={8}>
-              <motion.div
-                variants={itemVariants}
-                whileHover="hover"
-              >
-                <motion.div variants={cardHoverVariants}>
-                  <Card
-                    className="h-full bg-white/10 backdrop-blur-lg border-white/20 !border-opacity-20"
-                    styles={{
-                      body: {
-                        padding: '2rem',
-                        height: '100%',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between'
-                      }
-                    }}
-                  >
-                    <div className="text-center">
-                      <motion.div
-                        className="mb-6"
-                        whileHover={{ 
-                          rotate: [0, -10, 10, 0],
-                          transition: { duration: 0.5 }
-                        }}
-                      >
-                        {feature.icon}
-                      </motion.div>
-                      
-                      <Title level={3} className="!text-white !mb-4">
-                        {feature.title}
-                      </Title>
-                      
-                      <Paragraph className="!text-gray-300 !mb-8">
-                        {feature.description}
-                      </Paragraph>
-                    </div>
-                    
-                    <motion.div
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
+        <div className="max-w-4xl mx-auto">
+          <Row gutter={[32, 32]} justify="center">
+            {features.map((feature, index) => (
+              <Col key={index} xs={24} sm={12} lg={12}>
+                <motion.div
+                  variants={itemVariants}
+                  whileHover="hover"
+                  className="h-full"
+                >
+                  <motion.div variants={cardHoverVariants} className="h-full">
+                    <Card
+                      className="h-full bg-white/10 backdrop-blur-lg border-white/20 hover:bg-white/15 transition-all duration-300"
+                      styles={{
+                        body: {
+                          padding: '2.5rem',
+                          height: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between'
+                        }
+                      }}
                     >
-                      <Button
-                        type={feature.buttonType}
-                        size="large"
-                        block
-                        onClick={feature.action}
-                        className="!h-12 !text-lg !font-semibold"
+                      <div className="text-center flex-1">
+                        <motion.div
+                          className="mb-8"
+                          whileHover={{ 
+                            rotate: [0, -10, 10, 0],
+                            transition: { duration: 0.5 }
+                          }}
+                        >
+                          {feature.icon}
+                        </motion.div>
+                        
+                        <Title level={3} className="!text-white !mb-4">
+                          {feature.title}
+                        </Title>
+                        
+                        <Paragraph className="!text-gray-300 !mb-8 !text-base">
+                          {feature.description}
+                        </Paragraph>
+                      </div>
+                      
+                      <motion.div
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="mt-auto"
                       >
-                        {feature.buttonText}
-                      </Button>
-                    </motion.div>
-                  </Card>
+                        <Button
+                          type={feature.buttonType}
+                          size="large"
+                          block
+                          onClick={feature.action}
+                          className="!h-12 !text-lg !font-semibold"
+                        >
+                          {feature.buttonText}
+                        </Button>
+                      </motion.div>
+                    </Card>
+                  </motion.div>
                 </motion.div>
-              </motion.div>
-            </Col>
-          ))}
-        </Row>
+              </Col>
+            ))}
+          </Row>
+        </div>
 
         {/* Features Showcase */}
         <motion.div 
-          className="mt-20"
+          className="mt-24 max-w-6xl mx-auto"
           variants={itemVariants}
         >
-          <Card className="bg-white/5 backdrop-blur-lg border-white/10">
-            <Title level={2} className="!text-white !text-center !mb-8">
+          <Card className="bg-white/5 backdrop-blur-lg border-white/10 !border-opacity-10">
+            <Title level={2} className="!text-white !text-center !mb-12">
               Tính năng nổi bật
             </Title>
             
-            <Row gutter={[24, 24]}>
+            <Row gutter={[48, 32]}>
               <Col xs={24} md={8}>
-                <Space direction="vertical" className="w-full text-center">
+                <div className="text-center p-6">
                   <motion.div
-                    className="text-3xl text-yellow-400 mb-2"
+                    className="text-4xl text-yellow-400 mb-6"
                     animate={{ 
                       rotate: [0, 10, -10, 0],
                       transition: { 
@@ -186,19 +190,19 @@ function HomePage() {
                   >
                     🎵
                   </motion.div>
-                  <Title level={4} className="!text-white">
+                  <Title level={4} className="!text-white !mb-4">
                     Đồng bộ chính xác
                   </Title>
-                  <Paragraph className="!text-gray-300">
+                  <Paragraph className="!text-gray-300 !text-base">
                     Timestamp từng dòng lyrics với độ chính xác cao
                   </Paragraph>
-                </Space>
+                </div>
               </Col>
               
               <Col xs={24} md={8}>
-                <Space direction="vertical" className="w-full text-center">
+                <div className="text-center p-6">
                   <motion.div
-                    className="text-3xl text-pink-400 mb-2"
+                    className="text-4xl text-pink-400 mb-6"
                     animate={{ 
                       scale: [1, 1.2, 1],
                       transition: { 
@@ -210,19 +214,19 @@ function HomePage() {
                   >
                     ✨
                   </motion.div>
-                  <Title level={4} className="!text-white">
+                  <Title level={4} className="!text-white !mb-4">
                     Hiệu ứng karaoke
                   </Title>
-                  <Paragraph className="!text-gray-300">
+                  <Paragraph className="!text-gray-300 !text-base">
                     Hiệu ứng từng từ mượt mà như các ứng dụng chuyên nghiệp
                   </Paragraph>
-                </Space>
+                </div>
               </Col>
               
               <Col xs={24} md={8}>
-                <Space direction="vertical" className="w-full text-center">
+                <div className="text-center p-6">
                   <motion.div
-                    className="text-3xl text-green-400 mb-2"
+                    className="text-4xl text-green-400 mb-6"
                     animate={{ 
                       y: [0, -10, 0],
                       transition: { 
@@ -234,13 +238,13 @@ function HomePage() {
                   >
                     📱
                   </motion.div>
-                  <Title level={4} className="!text-white">
+                  <Title level={4} className="!text-white !mb-4">
                     Responsive Design
                   </Title>
-                  <Paragraph className="!text-gray-300">
+                  <Paragraph className="!text-gray-300 !text-base">
                     Tối ưu cho mọi thiết bị từ desktop đến mobile
                   </Paragraph>
-                </Space>
+                </div>
               </Col>
             </Row>
           </Card>
