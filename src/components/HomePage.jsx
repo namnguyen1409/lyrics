@@ -117,7 +117,8 @@ function HomePage() {
                           height: '100%',
                           display: 'flex',
                           flexDirection: 'column',
-                          justifyContent: 'space-between'
+                          justifyContent: 'space-between',
+                          margin: '10px 0'
                         }
                       }}
                     >

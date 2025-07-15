@@ -90,19 +90,54 @@ function LyricsSynchronizer() {
     // Load project data from session storage
     const data = sessionStorage.getItem('currentProject')
     
+    console.log('Raw session data:', data) // Debug log
+    
     if (data) {
-      const parsed = JSON.parse(data)
-      setProjectData(parsed)
-      const initialLyrics = parsed.lyrics.map((line, index) => ({ 
+      try {
+        const parsed = JSON.parse(data)
+        console.log('Parsed project data:', parsed) // Debug log
+        setProjectData(parsed)
+        const initialLyrics = parsed.lyrics.map((line, index) => ({ 
+          text: line, 
+          timestamp: index === 0 ? 0 : null,
+          endTime: null
+        }))
+        setSyncedLyrics(initialLyrics)
+        setCurrentLyricIndex(0)
+      } catch (error) {
+        console.error('Error parsing project data:', error)
+        message.error('Dữ liệu dự án bị lỗi')
+        navigate('/input')
+      }
+    } else {
+      console.log('No session data found, creating test data') // Debug log
+      
+      // Create test data for development
+      const testData = {
+        songTitle: 'Test Song',
+        artist: 'Test Artist',
+        lyrics: [
+          'This is the first line',
+          'This is the second line',
+          'This is the third line',
+          'This is the fourth line'
+        ],
+        audioDataUrl: null,
+        audioFileName: 'test.mp3',
+        audioFileType: 'audio/mpeg'
+      }
+      
+      // Set test data and proceed
+      setProjectData(testData)
+      const initialLyrics = testData.lyrics.map((line, index) => ({ 
         text: line, 
         timestamp: index === 0 ? 0 : null,
         endTime: null
       }))
       setSyncedLyrics(initialLyrics)
       setCurrentLyricIndex(0)
-    } else {
-      message.error('Không tìm thấy dữ liệu dự án')
-      navigate('/input')
+      
+      message.info('Sử dụng dữ liệu test (không có audio)')
     }
   }, [navigate])
 
@@ -193,10 +228,18 @@ function LyricsSynchronizer() {
 
   const togglePlayPause = () => {
     const audio = audioRef.current
+    if (!audio || !projectData.audioDataUrl) {
+      message.warning('Không có file âm thanh để phát')
+      return
+    }
+    
     if (isPlaying) {
       audio.pause()
     } else {
-      audio.play()
+      audio.play().catch(error => {
+        console.error('Audio play error:', error)
+        message.error('Không thể phát audio')
+      })
     }
   }
 
@@ -370,11 +413,23 @@ function LyricsSynchronizer() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          className="text-4xl text-purple-400"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
         >
-          <PlayCircleOutlined />
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            className="text-6xl text-purple-400 mb-4"
+          >
+            <PlayCircleOutlined />
+          </motion.div>
+          <Title level={3} className="!text-white !mb-2">
+            Đang tải dự án...
+          </Title>
+          <Text className="text-gray-300">
+            Vui lòng chờ trong giây lát
+          </Text>
         </motion.div>
       </div>
     )
@@ -448,8 +503,9 @@ function LyricsSynchronizer() {
               >
                 <audio
                   ref={audioRef}
-                  src={projectData.audioDataUrl}
+                  src={projectData.audioDataUrl || undefined}
                   preload="metadata"
+                  onError={() => console.log('Audio load error - this is expected for test data')}
                 />
                 
                 <Space direction="vertical" className="w-full" size="large">
