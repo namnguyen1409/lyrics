@@ -13,7 +13,9 @@ import {
   Progress,
   Tag,
   Tooltip,
-  Select
+  Select,
+  Input,
+  Modal
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -25,10 +27,15 @@ import {
   FieldTimeOutlined,
   FastBackwardOutlined,
   FastForwardOutlined,
-  UndoOutlined
+  UndoOutlined,
+  PlusCircleOutlined,
+  MinusCircleOutlined,
+  EditOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  QuestionCircleOutlined
 } from '@ant-design/icons'
 import localforage from 'localforage'
-import { v4 as uuidv4 } from 'uuid'
 import type { ProjectData, LyricLine } from '../types'
 
 const { Title, Text } = Typography
@@ -43,10 +50,14 @@ interface LyricItemProps {
   onSetTimestamp: (index: number) => void
   onSetEndTime: (index: number) => void
   onClearTimestamp: (index: number) => void
+  onAddLineAbove: (index: number) => void
+  onAddLineBelow: (index: number) => void
+  onDeleteLine: (index: number) => void
+  onUpdateText: (index: number, text: string) => void
   formatTime: (time: number | null) => string
 }
 
-const LyricItem: React.FC<LyricItemProps> = React.memo(({
+const LyricItem = React.memo<LyricItemProps>(({
   lyric,
   index,
   isActive,
@@ -54,11 +65,27 @@ const LyricItem: React.FC<LyricItemProps> = React.memo(({
   onSetTimestamp,
   onSetEndTime,
   onClearTimestamp,
+  onAddLineAbove,
+  onAddLineBelow,
+  onDeleteLine,
+  onUpdateText,
   formatTime
 }) => {
+  const [isEditing, setIsEditing] = useState(false)
+  const [editText, setEditText] = useState(lyric.text)
+
+  // Update editText when lyric.text changes (but not when user is editing)
+  useEffect(() => {
+    if (!isEditing) {
+      setEditText(lyric.text)
+    }
+  }, [lyric.text, isEditing])
+
   const handleClick = useCallback(() => {
-    onLyricClick(index)
-  }, [onLyricClick, index])
+    if (!isEditing) {
+      onLyricClick(index)
+    }
+  }, [onLyricClick, index, isEditing])
 
   const handleSetTimestamp = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
@@ -75,21 +102,84 @@ const LyricItem: React.FC<LyricItemProps> = React.memo(({
     onClearTimestamp(index)
   }, [onClearTimestamp, index])
 
-  return (
-    <motion.div
-      data-index={index}
-      variants={lyricItemVariants}
-      animate={isActive ? 'active' : 'inactive'}
-      className="mb-3 p-4 rounded-lg border border-white/10 cursor-pointer"
-      onClick={handleClick}
-      whileHover={{ scale: 1.005 }} // Reduced from 1.01 for better performance
-    >
+  const handleAddLineAbove = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    onAddLineAbove(index)
+  }, [onAddLineAbove, index])
+
+  const handleAddLineBelow = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    onAddLineBelow(index)
+  }, [onAddLineBelow, index])
+
+  const handleDeleteLine = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    onDeleteLine(index)
+  }, [onDeleteLine, index])
+
+  const handleStartEdit = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIsEditing(true)
+    setEditText(lyric.text)
+  }, [lyric.text])
+
+  const handleSaveEdit = useCallback(() => {
+    onUpdateText(index, editText.trim())
+    setIsEditing(false)
+  }, [onUpdateText, index, editText])
+
+  const handleCancelEdit = useCallback(() => {
+    setIsEditing(false)
+    setEditText(lyric.text)
+  }, [lyric.text])
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    e.stopPropagation() // Prevent global shortcuts when editing
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleSaveEdit()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      handleCancelEdit()
+    }
+  }, [handleSaveEdit, handleCancelEdit])
+
+  const handleInputBlur = useCallback(() => {
+    // Small delay to allow click on save button
+    setTimeout(() => {
+      if (isEditing) {
+        handleSaveEdit()
+      }
+    }, 100)
+  }, [isEditing, handleSaveEdit])
+
+  return (      <motion.div
+        data-index={index}
+        variants={lyricItemVariants}
+        animate={isActive ? 'active' : 'inactive'}
+        className="mb-3 p-4 rounded-lg border border-white/10 cursor-pointer"
+        onClick={handleClick}
+        layout={false} // Disable layout animations for better performance
+        whileHover={isEditing ? {} : { scale: 1.002 }} // Minimal hover effect, disabled when editing
+      >
       <Row justify="space-between" align="middle">
         <Col flex="auto">
           <Space direction="vertical" className="w-full">
-            <Text className="text-white text-base font-medium">
-              {lyric.text}
-            </Text>
+            {isEditing ? (
+              <Input
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onBlur={handleInputBlur}
+                autoFocus
+                className="text-base font-medium"
+                placeholder="Nhập lời bài hát..."
+              />
+            ) : (
+              <Text className="text-white text-base font-medium">
+                {lyric.text || <span className="text-gray-400 italic">Dòng trống</span>}
+              </Text>
+            )}
             <Space>
               <Tag color={lyric.timestamp !== null ? 'green' : 'default'}>
                 Start: {formatTime(lyric.timestamp)}
@@ -101,32 +191,93 @@ const LyricItem: React.FC<LyricItemProps> = React.memo(({
           </Space>
         </Col>
         <Col>
-          <Space>
-            <Tooltip title="Đặt timestamp hiện tại">
-              <Button
-                type="primary"
-                size="small"
-                icon={<FieldTimeOutlined />}
-                onClick={handleSetTimestamp}
-              />
-            </Tooltip>
-            <Tooltip title="Đặt thời gian kết thúc">
-              <Button
-                size="small"
-                icon={<FieldTimeOutlined />}
-                onClick={handleSetEndTime}
-              />
-            </Tooltip>
-            {lyric.timestamp !== null && index !== 0 && (
-              <Tooltip title="Xóa timestamp">
+          <Space direction="vertical" size="small">
+            {/* Row 1: Lyrics management */}
+            <Space size="small">
+              <Tooltip title="Thêm dòng phía trên">
                 <Button
-                  danger
                   size="small"
-                  icon={<UndoOutlined />}
-                  onClick={handleClearTimestamp}
+                  icon={<PlusCircleOutlined />}
+                  onClick={handleAddLineAbove}
+                  className="text-green-400 hover:text-green-300"
                 />
               </Tooltip>
-            )}
+              <Tooltip title="Thêm dòng phía dưới">
+                <Button
+                  size="small"
+                  icon={<PlusCircleOutlined />}
+                  onClick={handleAddLineBelow}
+                  className="text-blue-400 hover:text-blue-300"
+                />
+              </Tooltip>
+              {isEditing ? (
+                <>
+                  <Tooltip title="Lưu chỉnh sửa">
+                    <Button
+                      size="small"
+                      type="primary"
+                      icon={<CheckOutlined />}
+                      onClick={handleSaveEdit}
+                    />
+                  </Tooltip>
+                  <Tooltip title="Hủy chỉnh sửa">
+                    <Button
+                      size="small"
+                      icon={<CloseOutlined />}
+                      onClick={handleCancelEdit}
+                    />
+                  </Tooltip>
+                </>
+              ) : (
+                <Tooltip title="Chỉnh sửa nội dung">
+                  <Button
+                    size="small"
+                    icon={<EditOutlined />}
+                    onClick={handleStartEdit}
+                    className="text-yellow-400 hover:text-yellow-300"
+                  />
+                </Tooltip>
+              )}
+              <Tooltip title="Xóa dòng này">
+                <Button
+                  size="small"
+                  danger
+                  icon={<MinusCircleOutlined />}
+                  onClick={handleDeleteLine}
+                  className="text-red-400 hover:text-red-300"
+                  disabled={index === 0} // Không cho xóa dòng đầu tiên
+                />
+              </Tooltip>
+            </Space>
+            
+            {/* Row 2: Timestamp controls */}
+            <Space size="small">
+              <Tooltip title="Đặt timestamp hiện tại">
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<FieldTimeOutlined />}
+                  onClick={handleSetTimestamp}
+                />
+              </Tooltip>
+              <Tooltip title="Đặt thời gian kết thúc">
+                <Button
+                  size="small"
+                  icon={<FieldTimeOutlined />}
+                  onClick={handleSetEndTime}
+                />
+              </Tooltip>
+              {lyric.timestamp !== null && index !== 0 && (
+                <Tooltip title="Xóa timestamp">
+                  <Button
+                    danger
+                    size="small"
+                    icon={<UndoOutlined />}
+                    onClick={handleClearTimestamp}
+                  />
+                </Tooltip>
+              )}
+            </Space>
           </Space>
         </Col>
       </Row>
@@ -142,18 +293,18 @@ const containerVariants = {
   visible: {
     opacity: 1,
     transition: {
-      duration: 0.3, // Reduced from 0.6
-      staggerChildren: 0.05 // Reduced from 0.1
+      duration: 0.2, // Further reduced
+      staggerChildren: 0.02 // Much smaller stagger
     }
   }
 }
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 10 }, // Reduced from y: 20
+  hidden: { opacity: 0, y: 5 }, // Reduced movement
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.3 } // Reduced from 0.5
+    transition: { duration: 0.2 } // Faster transitions
   }
 }
 
@@ -161,15 +312,15 @@ const lyricItemVariants = {
   inactive: {
     scale: 1,
     opacity: 0.8,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)'
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    transition: { duration: 0.1 } // Faster transition
   },
   active: {
-    scale: 1.01, // Reduced from 1.02
+    scale: 1.005, // Much smaller scale change
     opacity: 1,
     backgroundColor: 'rgba(99, 102, 241, 0.2)',
     transition: {
-      type: "tween" as const, // Changed from spring to tween for better performance
-      duration: 0.2, // Added explicit duration
+      duration: 0.15, // Faster transition
       ease: "easeOut" as const
     }
   }
@@ -189,6 +340,7 @@ const LyricsSynchronizer: React.FC = () => {
   const [syncedLyrics, setSyncedLyrics] = useState<LyricLine[]>([])
   const [isSaving, setIsSaving] = useState<boolean>(false)
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1)
+  const [showShortcuts, setShowShortcuts] = useState<boolean>(false)
 
   useEffect(() => {
     // Load project data from session storage
@@ -307,18 +459,27 @@ const LyricsSynchronizer: React.FC = () => {
 
     const element = lyricsListRef.current.querySelector(`[data-index="${index}"]`)
     if (element) {
-      // Use requestAnimationFrame for smoother animation
-      requestAnimationFrame(() => {
-        element.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-          inline: 'nearest'
+      // Check if element is already in view to avoid unnecessary scrolling
+      const rect = element.getBoundingClientRect()
+      const containerRect = lyricsListRef.current.getBoundingClientRect()
+      
+      const isInView = rect.top >= containerRect.top && 
+                      rect.bottom <= containerRect.bottom
+
+      if (!isInView) {
+        // Use requestAnimationFrame for smoother animation
+        requestAnimationFrame(() => {
+          element.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+            inline: 'nearest'
+          })
         })
-      })
+      }
     }
   }, [])
 
-  // Optimized throttled scroll with reduced timeout
+  // Optimized throttled scroll with debounce
   const throttledScrollToLine = useCallback((index: number) => {
     if (throttledScrollRef.current) {
       clearTimeout(throttledScrollRef.current)
@@ -326,16 +487,18 @@ const LyricsSynchronizer: React.FC = () => {
 
     throttledScrollRef.current = setTimeout(() => {
       scrollToHighlightedLine(index)
-    }, 50) // Reduced from 100ms for more responsiveness
+    }, 150) // Increased timeout to reduce scroll frequency
   }, [scrollToHighlightedLine])
 
-  // Optimized update active line function
+  // Optimized update active line function with debouncing
   const updateActiveLine = useCallback((currentTime: number): void => {
     const activeIndex = findActiveIndex(currentTime)
     if (activeIndex !== currentLyricIndex) {
       setCurrentLyricIndex(activeIndex)
-      // Use throttled scroll to avoid jarring movement
-      throttledScrollToLine(activeIndex)
+      // Only scroll if the change is significant (avoid micro-scrolling)
+      if (Math.abs(activeIndex - currentLyricIndex) >= 1) {
+        throttledScrollToLine(activeIndex)
+      }
     }
   }, [currentLyricIndex, findActiveIndex, throttledScrollToLine])
 
@@ -489,6 +652,75 @@ const LyricsSynchronizer: React.FC = () => {
     message.info(`Đã xóa timestamp cho dòng ${index + 1}`)
   }, [])
 
+  // Lyrics management functions
+  const addLineAbove = useCallback((index: number) => {
+    setSyncedLyrics(prev => {
+      const newLyrics = [...prev]
+      newLyrics.splice(index, 0, {
+        text: '',
+        timestamp: null,
+        endTime: null
+      })
+      return newLyrics
+    })
+    // Update current index if needed
+    if (index <= currentLyricIndex) {
+      setCurrentLyricIndex(currentLyricIndex + 1)
+    }
+    message.success('Đã thêm dòng mới phía trên')
+  }, [currentLyricIndex])
+
+  const addLineBelow = useCallback((index: number) => {
+    setSyncedLyrics(prev => {
+      const newLyrics = [...prev]
+      newLyrics.splice(index + 1, 0, {
+        text: '',
+        timestamp: null,
+        endTime: null
+      })
+      return newLyrics
+    })
+    // Update current index if needed
+    if (index < currentLyricIndex) {
+      setCurrentLyricIndex(currentLyricIndex + 1)
+    }
+    message.success('Đã thêm dòng mới phía dưới')
+  }, [currentLyricIndex])
+
+  const deleteLine = useCallback((index: number) => {
+    if (syncedLyrics.length <= 1) {
+      message.warning('Không thể xóa dòng cuối cùng')
+      return
+    }
+
+    setSyncedLyrics(prev => {
+      const newLyrics = [...prev]
+      newLyrics.splice(index, 1)
+      return newLyrics
+    })
+
+    // Update current index if needed
+    if (index < currentLyricIndex) {
+      setCurrentLyricIndex(currentLyricIndex - 1)
+    } else if (index === currentLyricIndex && currentLyricIndex >= syncedLyrics.length - 1) {
+      setCurrentLyricIndex(Math.max(0, syncedLyrics.length - 2))
+    }
+    
+    message.success(`Đã xóa dòng ${index + 1}`)
+  }, [syncedLyrics.length, currentLyricIndex])
+
+  const updateLyricText = useCallback((index: number, newText: string) => {
+    setSyncedLyrics(prev => {
+      const newLyrics = [...prev]
+      newLyrics[index] = {
+        ...newLyrics[index],
+        text: newText
+      }
+      return newLyrics
+    })
+    message.success(`Đã cập nhật nội dung dòng ${index + 1}`)
+  }, [])
+
   const saveProject = useCallback(async () => {
     if (!projectData) return
 
@@ -496,7 +728,7 @@ const LyricsSynchronizer: React.FC = () => {
     try {
       // Check if this is editing an existing project
       const isEditing = projectData.isEditing && projectData.projectId
-      const projectId = isEditing ? projectData.projectId : uuidv4()
+      const projectId = isEditing ? projectData.projectId : Date.now().toString()
 
       const projectToSave = {
         id: projectId,
@@ -505,9 +737,9 @@ const LyricsSynchronizer: React.FC = () => {
         lyrics: syncedLyrics,
         createdAt: isEditing ?
           // Keep original creation date if editing
-          ((await localforage.getItem(`project_${projectId}`) as ProjectData | null)?.createdAt || new Date().toISOString()) :
+          ((await localforage.getItem(`project_${projectId}`)) as any)?.createdAt || new Date().toISOString() :
           new Date().toISOString(),
-        updatedAt: new Date().toISOString(), // Add update timestamp
+        updatedAt: new Date().toISOString(),
         audioFileName: projectData.audioFileName,
         audioDataUrl: projectData.audioDataUrl,
         audioFileType: projectData.audioFileType
@@ -521,7 +753,6 @@ const LyricsSynchronizer: React.FC = () => {
         if (!Array.isArray(projectsList)) {
           projectsList = []
         }
-        // Assert type to string[]
         const projectsListArr = projectsList as string[]
         if (typeof projectId === 'string' && !projectsListArr.includes(projectId)) {
           projectsListArr.push(projectId)
@@ -541,6 +772,12 @@ const LyricsSynchronizer: React.FC = () => {
 
   // Keyboard controls handler
   const handleKeyDown = useCallback((e: KeyboardEvent): void => {
+    // Don't handle keyboard shortcuts when user is typing in an input field
+    const target = e.target as HTMLElement
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+      return
+    }
+
     if (e.code === 'Space') {
       e.preventDefault()
       togglePlayPause()
@@ -559,8 +796,23 @@ const LyricsSynchronizer: React.FC = () => {
     } else if (e.code === 'KeyE') {
       e.preventDefault()
       setEndTime(currentLyricIndex)
+    } else if (e.code === 'KeyS' && !e.ctrlKey) {
+      e.preventDefault()
+      setTimestamp(currentLyricIndex)
+    } else if (e.code === 'Enter' && e.shiftKey) {
+      e.preventDefault()
+      addLineAbove(currentLyricIndex)
+    } else if (e.code === 'Enter' && e.ctrlKey) {
+      e.preventDefault()
+      addLineBelow(currentLyricIndex)
+    } else if (e.code === 'Delete' && e.ctrlKey) {
+      e.preventDefault()
+      deleteLine(currentLyricIndex)
+    } else if (e.code === 'F1') {
+      e.preventDefault()
+      setShowShortcuts(true)
     }
-  }, [togglePlayPause, goToPreviousLine, goToNextLine, seekBackward, seekForward, setEndTime, currentLyricIndex])
+  }, [togglePlayPause, goToPreviousLine, goToNextLine, seekBackward, seekForward, setEndTime, setTimestamp, addLineAbove, addLineBelow, deleteLine, currentLyricIndex])
 
   // All effects after functions are defined
   useEffect(() => {
@@ -595,11 +847,11 @@ const LyricsSynchronizer: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
 
-  // Optimized auto scroll when current lyric index changes
+  // Optimized auto scroll when current lyric index changes - with less frequency
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       scrollToHighlightedLine(currentLyricIndex)
-    }, 30) // Reduced from 50ms for faster response
+    }, 100) // Increased timeout to reduce scroll frequency
 
     return () => clearTimeout(timeoutId)
   }, [currentLyricIndex, scrollToHighlightedLine])
@@ -664,7 +916,6 @@ const LyricsSynchronizer: React.FC = () => {
               </div>
             </Row>
             <Row justify="space-between" align="middle">
-
               <Col>
                 <Space size="large">
                   <motion.div
@@ -689,6 +940,19 @@ const LyricsSynchronizer: React.FC = () => {
                     </Button>
                   </motion.div>
 
+                  <motion.div
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    <Button
+                      type="default"
+                      icon={<QuestionCircleOutlined />}
+                      size="large"
+                      onClick={() => setShowShortcuts(true)}
+                    >
+                      Phím tắt
+                    </Button>
+                  </motion.div>
                 </Space>
               </Col>
               <Col>
@@ -886,12 +1150,15 @@ const LyricsSynchronizer: React.FC = () => {
                     willChange: 'scroll-position',
                     contain: 'layout style paint',
                     transform: 'translateZ(0)', // Hardware acceleration
-                    WebkitOverflowScrolling: 'touch' // iOS smooth scrolling
+                    WebkitOverflowScrolling: 'touch', // iOS smooth scrolling
+                    // Reduce repaints
+                    backfaceVisibility: 'hidden',
+                    perspective: '1000px'
                   }}
                 >
                   {syncedLyrics.map((lyric, index) => (
                     <LyricItem
-                      key={index}
+                      key={`lyric-${index}-${lyric.text.slice(0, 10)}`} // Stable key for better performance
                       lyric={lyric}
                       index={index}
                       isActive={index === currentLyricIndex}
@@ -899,6 +1166,10 @@ const LyricsSynchronizer: React.FC = () => {
                       onSetTimestamp={setTimestamp}
                       onSetEndTime={setEndTime}
                       onClearTimestamp={clearTimestamp}
+                      onAddLineAbove={addLineAbove}
+                      onAddLineBelow={addLineBelow}
+                      onDeleteLine={deleteLine}
+                      onUpdateText={updateLyricText}
                       formatTime={formatTime}
                     />
                   ))}
@@ -907,6 +1178,79 @@ const LyricsSynchronizer: React.FC = () => {
             </motion.div>
           </Col>
         </Row>
+
+        {/* Shortcuts Modal */}
+        <Modal
+          title="Phím tắt"
+          open={showShortcuts}
+          onCancel={() => setShowShortcuts(false)}
+          footer={null}
+          width={600}
+        >
+          <div className="space-y-4">
+            <div>
+              <Title level={5}>Điều khiển phát nhạc</Title>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Phát/Tạm dừng</span>
+                  <Tag>Space</Tag>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tua lùi 5 giây</span>
+                  <Tag>←</Tag>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tua tới 5 giây</span>
+                  <Tag>→</Tag>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <Title level={5}>Điều khiển lyrics</Title>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Dòng trước</span>
+                  <Tag>↑</Tag>
+                </div>
+                <div className="flex justify-between">
+                  <span>Dòng sau</span>
+                  <Tag>↓</Tag>
+                </div>
+                <div className="flex justify-between">
+                  <span>Đặt timestamp</span>
+                  <Tag>S</Tag>
+                </div>
+                <div className="flex justify-between">
+                  <span>Đặt thời gian kết thúc</span>
+                  <Tag>E</Tag>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <Title level={5}>Quản lý lyrics</Title>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Thêm dòng phía trên</span>
+                  <Tag>Shift + Enter</Tag>
+                </div>
+                <div className="flex justify-between">
+                  <span>Thêm dòng phía dưới</span>
+                  <Tag>Ctrl + Enter</Tag>
+                </div>
+                <div className="flex justify-between">
+                  <span>Xóa dòng hiện tại</span>
+                  <Tag>Ctrl + Delete</Tag>
+                </div>
+                <div className="flex justify-between">
+                  <span>Hiển thị phím tắt</span>
+                  <Tag>F1</Tag>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Modal>
       </motion.div>
     </div>
   )
