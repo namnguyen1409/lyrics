@@ -1,0 +1,93 @@
+{
+  "name": "Lyrics Synchronizer",
+  "short_name": "LyricsSync",
+  "description": "Ứng dụng đồng bộ lời bài hát với âm thanh",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#8b5cf6",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "vi",
+  "categories": ["music", "entertainment", "productivity"],
+  "screenshots": [],
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Tạo dự án mới",
+      "short_name": "Tạo mới",
+      "description": "Tạo dự án đồng bộ lyrics mới",
+      "url": "/input",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Dự án đã lưu",
+      "short_name": "Dự án",
+      "description": "Xem các dự án đã lưu",
+      "url": "/saved",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "share_target": {
+    "action": "/input",
+    "method": "GET",
+    "params": {
+      "files": [
+        {
+          "name": "audio",
+          "accept": ["audio/*", "video/*"]
+        }
+      ]
+    }
+  },
+  "file_handlers": [
+    {
+      "action": "/input",
+      "accept": {
+        "audio/*": [".mp3", ".wav", ".ogg", ".m4a"],
+        "video/*": [".mp4", ".webm", ".mov"]
+      }
+    }
+  ],
+  "protocol_handlers": [
+    {
+      "protocol": "web+lyricsync",
+      "url": "/input?url=%s"
+    }
+  ]
+}

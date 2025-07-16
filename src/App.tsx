@@ -1,12 +1,14 @@
 import { Routes, Route } from 'react-router-dom'
 import { ConfigProvider, theme } from 'antd'
+
+import LyricsSynchronizer from './components/LyricsSynchronizer'
 import HomePage from './components/HomePage'
 import AudioLyricsInput from './components/AudioLyricsInput'
-import LyricsSynchronizer from './components/LyricsSynchronizer'
 import SavedProjects from './components/SavedProjects'
 import ProjectPreview from './components/ProjectPreview'
 
-function App() {
+
+const App: React.FC = () => {
   return (
     <ConfigProvider
       theme={{

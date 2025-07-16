@@ -1,11 +1,22 @@
+import React from 'react'
 import { motion } from 'framer-motion'
-import { Card, Button, Typography, Space, Row, Col } from 'antd'
+import { Card, Button, Typography, Row, Col } from 'antd'
 import { PlayCircleOutlined, FileTextOutlined, HistoryOutlined, PlusOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
+import OfflineStatus from './OfflineStatus'
 
 const { Title, Paragraph } = Typography
 
-function HomePage() {
+interface Feature {
+  icon: React.ReactNode
+  title: string
+  description: string
+  action: () => void
+  buttonText: string
+  buttonType: 'primary' | 'default'
+}
+
+const HomePage: React.FC = () => {
   const navigate = useNavigate()
 
   const containerVariants = {
@@ -25,7 +36,7 @@ function HomePage() {
       y: 0,
       opacity: 1,
       transition: {
-        type: "spring",
+        type: "spring" as const,
         damping: 12,
         stiffness: 100
       }
@@ -37,14 +48,14 @@ function HomePage() {
       scale: 1.05,
       y: -10,
       transition: {
-        type: "spring",
+        type: "spring" as const,
         stiffness: 300,
         damping: 20
       }
     }
   }
 
-  const features = [
+  const features: Feature[] = [
     {
       icon: <PlusOutlined className="text-4xl text-blue-500" />,
       title: "Tạo dự án mới",
@@ -165,10 +176,22 @@ function HomePage() {
           </Row>
         </div>
 
+        {/* Offline Status */}
+        <motion.div
+          className="mt-24 max-w-6xl mx-auto"
+          variants={itemVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          <OfflineStatus />
+        </motion.div>
+
         {/* Features Showcase */}
         <motion.div 
           className="mt-24 max-w-6xl mx-auto"
           variants={itemVariants}
+          initial="hidden"
+          animate="visible"
         >
           <Card className="bg-white/5 backdrop-blur-lg border-white/10 !border-opacity-10">
             <Title level={2} className="!text-white !text-center !mb-12">
