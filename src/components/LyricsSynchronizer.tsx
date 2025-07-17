@@ -12,9 +12,7 @@ import {
   message,
   Progress,
   Tag,
-  Tooltip,
   Select,
-  Input,
   Modal
 } from 'antd'
 import {
@@ -27,304 +25,14 @@ import {
   FieldTimeOutlined,
   FastBackwardOutlined,
   FastForwardOutlined,
-  UndoOutlined,
-  PlusCircleOutlined,
-  MinusCircleOutlined,
-  EditOutlined,
-  CheckOutlined,
-  CloseOutlined,
   QuestionCircleOutlined
 } from '@ant-design/icons'
 import localforage from 'localforage'
 import type { ProjectData, LyricLine } from '../types'
+import LyricItem from './LyricItem'
 
 const { Title, Text } = Typography
 const { Option } = Select
-
-// Memoized LyricItem component to prevent unnecessary re-renders
-interface LyricItemProps {
-  lyric: LyricLine
-  index: number
-  isActive: boolean
-  onLyricClick: (index: number) => void
-  onSetTimestamp: (index: number) => void
-  onSetEndTime: (index: number) => void
-  onClearTimestamp: (index: number) => void
-  onAddLineAbove: (index: number) => void
-  onAddLineBelow: (index: number) => void
-  onDeleteLine: (index: number) => void
-  onUpdateText: (index: number, text: string) => void
-  formatTime: (time: number | null) => string
-}
-
-const LyricItem = React.memo<LyricItemProps>(({
-  lyric,
-  index,
-  isActive,
-  onLyricClick,
-  onSetTimestamp,
-  onSetEndTime,
-  onClearTimestamp,
-  onAddLineAbove,
-  onAddLineBelow,
-  onDeleteLine,
-  onUpdateText,
-  formatTime
-}) => {
-  const [isEditing, setIsEditing] = useState(false)
-  const [editText, setEditText] = useState(lyric.text)
-
-  // Update editText when lyric.text changes (but not when user is editing)
-  useEffect(() => {
-    if (!isEditing) {
-      setEditText(lyric.text)
-    }
-  }, [lyric.text, isEditing])
-
-  const handleClick = useCallback(() => {
-    if (!isEditing) {
-      onLyricClick(index)
-    }
-  }, [onLyricClick, index, isEditing])
-
-  const handleSetTimestamp = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    onSetTimestamp(index)
-  }, [onSetTimestamp, index])
-
-  const handleSetEndTime = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    onSetEndTime(index)
-  }, [onSetEndTime, index])
-
-  const handleClearTimestamp = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    onClearTimestamp(index)
-  }, [onClearTimestamp, index])
-
-  const handleAddLineAbove = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    onAddLineAbove(index)
-  }, [onAddLineAbove, index])
-
-  const handleAddLineBelow = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    onAddLineBelow(index)
-  }, [onAddLineBelow, index])
-
-  const handleDeleteLine = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    onDeleteLine(index)
-  }, [onDeleteLine, index])
-
-  const handleStartEdit = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    setIsEditing(true)
-    setEditText(lyric.text)
-  }, [lyric.text])
-
-  const handleSaveEdit = useCallback(() => {
-    onUpdateText(index, editText.trim())
-    setIsEditing(false)
-  }, [onUpdateText, index, editText])
-
-  const handleCancelEdit = useCallback(() => {
-    setIsEditing(false)
-    setEditText(lyric.text)
-  }, [lyric.text])
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    e.stopPropagation() // Prevent global shortcuts when editing
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      handleSaveEdit()
-    } else if (e.key === 'Escape') {
-      e.preventDefault()
-      handleCancelEdit()
-    }
-  }, [handleSaveEdit, handleCancelEdit])
-
-  const handleInputBlur = useCallback(() => {
-    // Small delay to allow click on save button
-    setTimeout(() => {
-      if (isEditing) {
-        handleSaveEdit()
-      }
-    }, 100)
-  }, [isEditing, handleSaveEdit])
-
-  return (      <motion.div
-        data-index={index}
-        variants={lyricItemVariants}
-        animate={isActive ? 'active' : 'inactive'}
-        className="mb-3 p-4 rounded-lg border border-white/10 cursor-pointer"
-        onClick={handleClick}
-        layout={false} // Disable layout animations for better performance
-        whileHover={isEditing ? {} : { scale: 1.002 }} // Minimal hover effect, disabled when editing
-      >
-      <Row justify="space-between" align="middle">
-        <Col flex="auto">
-          <Space direction="vertical" className="w-full">
-            {isEditing ? (
-              <Input
-                value={editText}
-                onChange={(e) => setEditText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onBlur={handleInputBlur}
-                autoFocus
-                className="text-base font-medium"
-                placeholder="Nhập lời bài hát..."
-              />
-            ) : (
-              <Text className="text-white text-base font-medium">
-                {lyric.text || <span className="text-gray-400 italic">Dòng trống</span>}
-              </Text>
-            )}
-            <Space>
-              <Tag color={lyric.timestamp !== null ? 'green' : 'default'}>
-                Start: {formatTime(lyric.timestamp)}
-              </Tag>
-              <Tag color={lyric.endTime !== null ? 'orange' : 'default'}>
-                End: {formatTime(lyric.endTime)}
-              </Tag>
-            </Space>
-          </Space>
-        </Col>
-        <Col>
-          <Space direction="vertical" size="small">
-            {/* Row 1: Lyrics management */}
-            <Space size="small">
-              <Tooltip title="Thêm dòng phía trên">
-                <Button
-                  size="small"
-                  icon={<PlusCircleOutlined />}
-                  onClick={handleAddLineAbove}
-                  className="text-green-400 hover:text-green-300"
-                />
-              </Tooltip>
-              <Tooltip title="Thêm dòng phía dưới">
-                <Button
-                  size="small"
-                  icon={<PlusCircleOutlined />}
-                  onClick={handleAddLineBelow}
-                  className="text-blue-400 hover:text-blue-300"
-                />
-              </Tooltip>
-              {isEditing ? (
-                <>
-                  <Tooltip title="Lưu chỉnh sửa">
-                    <Button
-                      size="small"
-                      type="primary"
-                      icon={<CheckOutlined />}
-                      onClick={handleSaveEdit}
-                    />
-                  </Tooltip>
-                  <Tooltip title="Hủy chỉnh sửa">
-                    <Button
-                      size="small"
-                      icon={<CloseOutlined />}
-                      onClick={handleCancelEdit}
-                    />
-                  </Tooltip>
-                </>
-              ) : (
-                <Tooltip title="Chỉnh sửa nội dung">
-                  <Button
-                    size="small"
-                    icon={<EditOutlined />}
-                    onClick={handleStartEdit}
-                    className="text-yellow-400 hover:text-yellow-300"
-                  />
-                </Tooltip>
-              )}
-              <Tooltip title="Xóa dòng này">
-                <Button
-                  size="small"
-                  danger
-                  icon={<MinusCircleOutlined />}
-                  onClick={handleDeleteLine}
-                  className="text-red-400 hover:text-red-300"
-                  disabled={index === 0} // Không cho xóa dòng đầu tiên
-                />
-              </Tooltip>
-            </Space>
-            
-            {/* Row 2: Timestamp controls */}
-            <Space size="small">
-              <Tooltip title="Đặt timestamp hiện tại">
-                <Button
-                  type="primary"
-                  size="small"
-                  icon={<FieldTimeOutlined />}
-                  onClick={handleSetTimestamp}
-                />
-              </Tooltip>
-              <Tooltip title="Đặt thời gian kết thúc">
-                <Button
-                  size="small"
-                  icon={<FieldTimeOutlined />}
-                  onClick={handleSetEndTime}
-                />
-              </Tooltip>
-              {lyric.timestamp !== null && index !== 0 && (
-                <Tooltip title="Xóa timestamp">
-                  <Button
-                    danger
-                    size="small"
-                    icon={<UndoOutlined />}
-                    onClick={handleClearTimestamp}
-                  />
-                </Tooltip>
-              )}
-            </Space>
-          </Space>
-        </Col>
-      </Row>
-    </motion.div>
-  )
-})
-
-LyricItem.displayName = 'LyricItem'
-
-// Optimized animation variants for better performance
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      duration: 0.2, // Further reduced
-      staggerChildren: 0.02 // Much smaller stagger
-    }
-  }
-}
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 5 }, // Reduced movement
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.2 } // Faster transitions
-  }
-}
-
-const lyricItemVariants = {
-  inactive: {
-    scale: 1,
-    opacity: 0.8,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    transition: { duration: 0.1 } // Faster transition
-  },
-  active: {
-    scale: 1.005, // Much smaller scale change
-    opacity: 1,
-    backgroundColor: 'rgba(99, 102, 241, 0.2)',
-    transition: {
-      duration: 0.15, // Faster transition
-      ease: "easeOut" as const
-    }
-  }
-}
 
 const LyricsSynchronizer: React.FC = () => {
   const navigate = useNavigate()
@@ -369,21 +77,31 @@ const LyricsSynchronizer: React.FC = () => {
           setProjectData(parsed)
 
           // Check if lyrics are already synced objects (editing mode) or just text array (new project)
-          let initialLyrics
+          let initialLyrics: LyricLine[]
           if (parsed.isEditing && parsed.lyrics[0] && typeof parsed.lyrics[0] === 'object') {
             // Editing existing project - use existing lyrics with timestamps
-            initialLyrics = parsed.lyrics.map((lyric: LyricLine) => ({
+            initialLyrics = parsed.lyrics.map((lyric: LyricLine, index: number) => ({
+              id: lyric.id || `lyric-${index}-${Date.now()}`,
               text: lyric.text,
               timestamp: lyric.timestamp,
-              endTime: lyric.endTime || null
+              endTime: lyric.endTime || null,
+              phonetic: lyric.phonetic || '',
+              translation: lyric.translation || '',
+              notes: lyric.notes || '',
+              additionalLines: lyric.additionalLines || []
             }))
             console.log('Loading existing project with timestamps')
           } else {
-            // New project - convert text array to lyrics objects
+            // New project - convert text array or LyricLine array to full lyrics objects
             initialLyrics = parsed.lyrics.map((line: string | LyricLine, index: number) => ({
+              id: typeof line === 'object' && line.id ? line.id : `lyric-${index}-${Date.now()}`,
               text: typeof line === 'string' ? line : line.text, // Handle both string and object
               timestamp: index === 0 ? 0 : null,
-              endTime: null
+              endTime: null,
+              phonetic: typeof line === 'object' && line.phonetic ? line.phonetic : '',
+              translation: typeof line === 'object' && line.translation ? line.translation : '',
+              notes: typeof line === 'object' && line.notes ? line.notes : '',
+              additionalLines: typeof line === 'object' && line.additionalLines ? line.additionalLines : []
             }))
             console.log('Creating new project lyrics')
           }
@@ -403,10 +121,46 @@ const LyricsSynchronizer: React.FC = () => {
           songTitle: 'Test Song',
           artist: 'Test Artist',
           lyrics: [
-            'This is the first line',
-            'This is the second line',
-            'This is the third line',
-            'This is the fourth line'
+            {
+              id: '1',
+              text: 'This is the first line',
+              timestamp: null,
+              endTime: null,
+              phonetic: '',
+              translation: '',
+              notes: '',
+              additionalLines: []
+            },
+            {
+              id: '2', 
+              text: 'This is the second line',
+              timestamp: null,
+              endTime: null,
+              phonetic: '',
+              translation: '',
+              notes: '',
+              additionalLines: []
+            },
+            {
+              id: '3',
+              text: 'This is the third line', 
+              timestamp: null,
+              endTime: null,
+              phonetic: '',
+              translation: '',
+              notes: '',
+              additionalLines: []
+            },
+            {
+              id: '4',
+              text: 'This is the fourth line',
+              timestamp: null,
+              endTime: null,
+              phonetic: '',
+              translation: '',
+              notes: '',
+              additionalLines: []
+            }
           ],
           audioDataUrl: null,
           audioFileName: 'test.mp3',
@@ -415,10 +169,8 @@ const LyricsSynchronizer: React.FC = () => {
 
         // Set test data and proceed
         setProjectData(testData)
-        const initialLyrics = testData.lyrics.map((line, index) => ({
-          text: line,
-          timestamp: index === 0 ? 0 : null,
-          endTime: null
+        const initialLyrics = testData.lyrics.map((lyric) => ({
+          ...lyric
         }))
         setSyncedLyrics(initialLyrics)
         setCurrentLyricIndex(0)
@@ -657,9 +409,14 @@ const LyricsSynchronizer: React.FC = () => {
     setSyncedLyrics(prev => {
       const newLyrics = [...prev]
       newLyrics.splice(index, 0, {
+        id: `lyric-${Date.now()}-${Math.random()}`,
         text: '',
         timestamp: null,
-        endTime: null
+        endTime: null,
+        phonetic: '',
+        translation: '',
+        notes: '',
+        additionalLines: []
       })
       return newLyrics
     })
@@ -674,9 +431,14 @@ const LyricsSynchronizer: React.FC = () => {
     setSyncedLyrics(prev => {
       const newLyrics = [...prev]
       newLyrics.splice(index + 1, 0, {
+        id: `lyric-${Date.now()}-${Math.random()}`,
         text: '',
         timestamp: null,
-        endTime: null
+        endTime: null,
+        phonetic: '',
+        translation: '',
+        notes: '',
+        additionalLines: []
       })
       return newLyrics
     })
@@ -719,6 +481,43 @@ const LyricsSynchronizer: React.FC = () => {
       return newLyrics
     })
     message.success(`Đã cập nhật nội dung dòng ${index + 1}`)
+  }, [])
+
+  // Phonetic, translation, notes update functions
+  const updateLyricPhonetic = useCallback((index: number, newPhonetic: string) => {
+    setSyncedLyrics(prev => {
+      const newLyrics = [...prev]
+      newLyrics[index] = {
+        ...newLyrics[index],
+        phonetic: newPhonetic
+      }
+      return newLyrics
+    })
+    message.success(`Đã cập nhật phiên âm dòng ${index + 1}`)
+  }, [])
+
+  const updateLyricTranslation = useCallback((index: number, newTranslation: string) => {
+    setSyncedLyrics(prev => {
+      const newLyrics = [...prev]
+      newLyrics[index] = {
+        ...newLyrics[index],
+        translation: newTranslation
+      }
+      return newLyrics
+    })
+    message.success(`Đã cập nhật bản dịch dòng ${index + 1}`)
+  }, [])
+
+  const updateLyricNotes = useCallback((index: number, newNotes: string) => {
+    setSyncedLyrics(prev => {
+      const newLyrics = [...prev]
+      newLyrics[index] = {
+        ...newLyrics[index],
+        notes: newNotes
+      }
+      return newLyrics
+    })
+    message.success(`Đã cập nhật ghi chú dòng ${index + 1}`)
   }, [])
 
   const saveProject = useCallback(async () => {
@@ -867,55 +666,132 @@ const LyricsSynchronizer: React.FC = () => {
 
   if (!projectData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center"
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div 
+          className="container mx-auto px-4 py-6 min-h-screen max-w-7xl"
+          style={{ contain: 'layout style' }} // CSS containment for layout performance
         >
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            className="text-6xl text-purple-400 mb-4"
-          >
-            <PlayCircleOutlined />
-          </motion.div>
-          <Title level={3} className="!text-white !mb-2">
-            Đang tải dự án...
-          </Title>
-          <Text className="text-gray-300">
-            Vui lòng chờ trong giây lát
-          </Text>
-        </motion.div>
+          {/* Loading Skeleton - exact dimensions as final layout */}
+          <div className="mb-6 h-[120px]">
+            <Card className="bg-white/10 backdrop-blur-lg border-white/20 h-full flex items-center">
+              <div className="w-full flex justify-between items-center">
+                <div className="flex-1">
+                  <div className="h-8 bg-white/10 rounded-lg mb-2 animate-pulse w-3/4" />
+                  <div className="h-4 bg-white/10 rounded animate-pulse w-1/3" />
+                </div>
+                <div className="flex space-x-4">
+                  <div className="h-10 w-24 bg-white/10 rounded animate-pulse" />
+                  <div className="h-10 w-24 bg-white/10 rounded animate-pulse" />
+                  <div className="h-10 w-32 bg-white/10 rounded animate-pulse" />
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          <Row gutter={[24, 24]} style={{ alignItems: 'flex-start' }}>
+            {/* Audio Controls Skeleton - exact same dimensions */}
+            <Col xs={24} lg={8}>
+              <Card 
+                className="bg-white/10 backdrop-blur-lg border-white/20 h-[580px]"
+                title={<div className="h-5 bg-white/10 rounded animate-pulse w-1/2" />}
+              >
+                <div className="h-full flex flex-col justify-between">
+                  {/* Play button skeleton */}
+                  <div className="text-center">
+                    <div className="h-16 w-16 bg-white/10 rounded-full mx-auto animate-pulse" />
+                  </div>
+                  
+                  {/* Progress bar skeleton */}
+                  <div className="h-[60px] space-y-2">
+                    <div className="flex justify-between">
+                      <div className="h-4 w-12 bg-white/10 rounded animate-pulse" />
+                      <div className="h-4 w-12 bg-white/10 rounded animate-pulse" />
+                    </div>
+                    <div className="h-4 bg-white/10 rounded animate-pulse" />
+                  </div>
+                  
+                  {/* Speed control skeleton */}
+                  <div className="h-[80px] space-y-2">
+                    <div className="h-4 bg-white/10 rounded animate-pulse w-1/3" />
+                    <div className="h-8 bg-white/10 rounded animate-pulse" />
+                  </div>
+                  
+                  {/* Control buttons skeleton */}
+                  <div className="h-[140px] grid grid-cols-2 gap-2">
+                    {[...Array(6)].map((_, i) => (
+                      <div key={i} className="h-10 bg-white/10 rounded animate-pulse" />
+                    ))}
+                  </div>
+                  
+                  {/* Progress info skeleton */}
+                  <div className="h-[80px] space-y-2 text-center">
+                    <div className="h-4 bg-white/10 rounded animate-pulse" />
+                    <div className="h-4 bg-white/10 rounded animate-pulse w-1/4 mx-auto" />
+                  </div>
+                </div>
+              </Card>
+            </Col>
+
+            {/* Lyrics List Skeleton - exact same dimensions */}
+            <Col xs={24} lg={16}>
+              <Card 
+                className="bg-white/10 backdrop-blur-lg border-white/20 h-[680px]"
+                title={<div className="h-5 bg-white/10 rounded animate-pulse w-1/2" />}
+              >
+                <div className="h-[600px] overflow-hidden space-y-3">
+                  {[...Array(8)].map((_, i) => (
+                    <div key={i} className="h-[70px] bg-white/10 rounded-lg animate-pulse flex items-center p-4">
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-white/5 rounded animate-pulse w-3/4" />
+                        <div className="h-3 bg-white/5 rounded animate-pulse w-1/2" />
+                      </div>
+                      <div className="flex space-x-2">
+                        <div className="h-6 w-16 bg-white/5 rounded animate-pulse" />
+                        <div className="h-6 w-16 bg-white/5 rounded animate-pulse" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </Col>
+          </Row>
+
+          {/* Loading indicator */}
+          <div className="fixed bottom-8 right-8">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              className="text-4xl text-purple-400"
+            >
+              <PlayCircleOutlined />
+            </motion.div>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <motion.div
-        className="container mx-auto px-4 py-6"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
+      <div
+        className="container mx-auto px-4 py-6 min-h-screen max-w-7xl"
+        style={{ 
+          contain: 'layout style', // CSS containment for better layout performance
+          willChange: 'auto' // Remove will-change when not needed
+        }}
       >
-        {/* Header */}
-        <motion.div
-          className="mb-6"
-          variants={itemVariants}
-          initial="hidden"
-          animate="visible"
-        >
-          <Card className="bg-white/10 backdrop-blur-lg border-white/20">
-            <Row>
-              <div>
-                <Title level={3} className="!text-white !mb-1">
-                  {projectData.songTitle} {projectData.isEditing && <span className="text-orange-400">(Đang chỉnh sửa)</span>}
-                </Title>
-                <Text className="text-gray-300">{projectData.artist}</Text>
-              </div>
-            </Row>
-            <Row justify="space-between" align="middle">
+        {/* Header - Fixed height to prevent layout shift */}
+        <div className="mb-6 h-[120px]">
+          <Card className="bg-white/10 backdrop-blur-lg border-white/20 h-full flex items-center">
+            <Row justify="space-between" align="middle" className="w-full">
+              <Col>
+                <div>
+                  <Title level={3} className="!text-white !mb-1 leading-tight">
+                    {projectData.songTitle} {projectData.isEditing && <span className="text-orange-400">(Đang chỉnh sửa)</span>}
+                  </Title>
+                  <Text className="text-gray-300">{projectData.artist}</Text>
+                </div>
+              </Col>
               <Col>
                 <Space size="large">
                   <motion.div
@@ -973,20 +849,16 @@ const LyricsSynchronizer: React.FC = () => {
               </Col>
             </Row>
           </Card>
-        </motion.div>
+        </div>
 
-        <Row gutter={[24, 24]} className="items-start" style={{ alignItems: 'flex-start' }}>
-          {/* Audio Controls */}
+        <Row gutter={[24, 24]} style={{ alignItems: 'flex-start', minHeight: '680px' }}>
+          {/* Audio Controls - Fixed height */}
           <Col xs={24} lg={8} className="flex">
-            <motion.div
-              variants={itemVariants}
-              initial="hidden"
-              animate="visible"
-              className="w-full"
-            >
+            <div className="w-full">
               <Card
-                className="bg-white/10 backdrop-blur-lg border-white/20 sticky h-fit w-full"
+                className="bg-white/10 backdrop-blur-lg border-white/20 h-[580px] w-full" // Fixed height
                 title={<Text className="text-white font-semibold">Điều khiển âm thanh</Text>}
+                style={{ contain: 'layout style' }} // CSS containment
               >
                 <audio
                   ref={audioRef}
@@ -1121,34 +993,30 @@ const LyricsSynchronizer: React.FC = () => {
                   </div>
                 </Space>
               </Card>
-            </motion.div>
+            </div>
           </Col>
 
-          {/* Lyrics List */}
+          {/* Lyrics List - Fixed height */}
           <Col xs={24} lg={16} className="flex">
-            <motion.div
-              variants={itemVariants}
-              initial="hidden"
-              animate="visible"
-              className="w-full"
-            >
+            <div className="w-full">
               <Card
-                className="bg-white/10 backdrop-blur-lg border-white/20 h-fit w-full"
+                className="bg-white/10 backdrop-blur-lg border-white/20 h-[680px] w-full" // Fixed height
                 title={<Text className="text-white font-semibold">Danh sách lời bài hát</Text>}
+                style={{ contain: 'layout style' }} // CSS containment
               >
                 <div
                   ref={lyricsListRef}
-                  className="max-h-[600px] overflow-y-auto pr-2"
+                  className="h-[600px] overflow-y-auto pr-2" // Fixed height instead of max-height
                   style={{
                     scrollBehavior: 'smooth',
                     scrollPaddingTop: '40px',
                     scrollPaddingBottom: '40px',
+                    contain: 'layout style paint', // CSS containment for scroll performance
                     // Optimized CSS for better scrolling performance
                     scrollbarWidth: 'thin',
                     scrollbarColor: 'rgba(139, 92, 246, 0.3) transparent',
                     // Performance improvements
                     willChange: 'scroll-position',
-                    contain: 'layout style paint',
                     transform: 'translateZ(0)', // Hardware acceleration
                     WebkitOverflowScrolling: 'touch', // iOS smooth scrolling
                     // Reduce repaints
@@ -1170,12 +1038,15 @@ const LyricsSynchronizer: React.FC = () => {
                       onAddLineBelow={addLineBelow}
                       onDeleteLine={deleteLine}
                       onUpdateText={updateLyricText}
+                      onUpdatePhonetic={updateLyricPhonetic}
+                      onUpdateTranslation={updateLyricTranslation}
+                      onUpdateNotes={updateLyricNotes}
                       formatTime={formatTime}
                     />
                   ))}
                 </div>
               </Card>
-            </motion.div>
+            </div>
           </Col>
         </Row>
 
@@ -1251,7 +1122,7 @@ const LyricsSynchronizer: React.FC = () => {
             </div>
           </div>
         </Modal>
-      </motion.div>
+      </div>
     </div>
   )
 }

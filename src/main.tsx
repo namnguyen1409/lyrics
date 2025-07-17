@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { ConfigProvider } from 'antd'
 import './index.css'
+import './styles/cls-optimization.css'
 import App from './App'
 
 // Import offline manager

@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom'
 import localforage from 'localforage'
 import { v4 as uuidv4 } from 'uuid'
 import type { UploadFile } from 'antd'
-import type { ProjectData, TextFormat } from '../types'
+import type { ProjectData, TextFormat, LyricLine } from '../types'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -35,6 +35,7 @@ const AudioLyricsInput: React.FC = () => {
 
     // Text formatting states
     const [textFormat, setTextFormat] = useState<TextFormat>('original')
+    const [groupingMode, setGroupingMode] = useState<'line' | 'paragraph' | 'separator'>('line')
 
     const handleAudioUpload = (file: UploadFile): boolean => {
         setUploading(true)
@@ -165,6 +166,151 @@ const AudioLyricsInput: React.FC = () => {
         }
     }
 
+    const previewLyrics = (): LyricLine[] => {
+        const currentLyrics = form.getFieldValue('lyrics')
+        if (!currentLyrics?.trim()) return []
+        return processLyrics(currentLyrics, groupingMode)
+    }
+
+    // Auto-suggest grouping mode based on content analysis
+    const analyzeAndSuggestGrouping = (text: string): 'line' | 'paragraph' | 'separator' => {
+        if (!text?.trim()) return 'line'
+
+        const lines = text.split('\n').filter(line => line.trim().length > 0)
+        const totalLines = lines.length
+        const emptyLineCount = text.split(/\n\s*\n/).length - 1
+        const separatorCount = text.split(/\n\s*(?:---|===)\s*\n/).length - 1
+
+        // Check for separators first
+        if (separatorCount > 0) {
+            return 'separator'
+        }
+
+        // Check for paragraph structure
+        if (emptyLineCount > 0 && totalLines > emptyLineCount * 2) {
+            // Has empty lines and reasonable content density
+            return 'paragraph'
+        }
+
+        // Check for potential multi-line lyrics (phonetic patterns)
+        const phoneticPatterns = [
+            /\([^)]+\)/g, // Parentheses (romanization)
+            /\[[^\]]+\]/g, // Square brackets
+            /【[^】]+】/g, // Chinese brackets
+            /\d+\./g, // Numbered lines
+        ]
+
+        let phoneticIndicators = 0
+        phoneticPatterns.forEach(pattern => {
+            if (pattern.test(text)) phoneticIndicators++
+        })
+
+        // If many phonetic indicators, suggest paragraph grouping
+        if (phoneticIndicators >= 2 && totalLines > 10) {
+            return 'paragraph'
+        }
+
+        // Default to line-by-line
+        return 'line'
+    }
+
+    const getGroupingSuggestion = (): string => {
+        const currentLyrics = form.getFieldValue('lyrics')
+        if (!currentLyrics?.trim()) return ''
+
+        const suggested = analyzeAndSuggestGrouping(currentLyrics)
+        if (suggested !== groupingMode) {
+            const suggestions = {
+                'line': 'Gợi ý: Sử dụng "Mỗi dòng là một lời"',
+                'paragraph': 'Gợi ý: Phát hiện phiên âm/bính âm - nên dùng "Gom theo đoạn văn"',
+                'separator': 'Gợi ý: Phát hiện dấu phân cách - nên dùng "Gom theo dấu phân cách"'
+            }
+            return suggestions[suggested]
+        }
+        return ''
+    }
+
+    // Enhanced lyrics processing function that supports multi-line content
+    const processLyrics = (text: string, mode: 'line' | 'paragraph' | 'separator'): LyricLine[] => {
+        if (!text?.trim()) return []
+
+        let sections: string[] = []
+
+        switch (mode) {
+            case 'line':
+                // Mỗi dòng là một lời (cách truyền thống)
+                sections = text.split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line.length > 0)
+                break
+
+            case 'paragraph':
+                // Gom các dòng liên tiếp thành một lời (phân cách bởi dòng trống)
+                sections = text.split(/\n\s*\n/)
+                    .map(paragraph => paragraph.trim())
+                    .filter(paragraph => paragraph.length > 0)
+                break
+
+            case 'separator':
+                // Gom theo dấu phân cách "---" hoặc "===" 
+                sections = text.split(/\n\s*(?:---|===)\s*\n/)
+                    .map(section => section.trim())
+                    .filter(section => section.length > 0)
+                break
+
+            default:
+                return []
+        }
+
+        // Convert sections to LyricLine objects with enhanced parsing
+        return sections.map((section, index) => {
+            const lines = section.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+            const mainText = lines[0] || ''
+            
+            // Detect and extract additional information
+            let phonetic = ''
+            let translation = ''
+            let notes = ''
+            const additionalLines: { type: 'phonetic' | 'translation' | 'note' | 'custom', text: string, label?: string }[] = []
+
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i]
+                
+                // Detect phonetic (in parentheses)
+                if (/^\([^)]+\)$/.test(line)) {
+                    phonetic = line.slice(1, -1) // Remove parentheses
+                    additionalLines.push({ type: 'phonetic', text: phonetic })
+                }
+                // Detect translation (in square brackets)
+                else if (/^\[[^\]]+\]$/.test(line)) {
+                    translation = line.slice(1, -1) // Remove brackets
+                    additionalLines.push({ type: 'translation', text: translation })
+                }
+                // Detect notes (starting with #, //, or Note:)
+                else if (/^(#|\/\/|Note:|Ghi chú:)/.test(line)) {
+                    notes = line.replace(/^(#|\/\/|Note:|Ghi chú:)\s*/, '')
+                    additionalLines.push({ type: 'note', text: notes })
+                }
+                // Other lines as custom content
+                else {
+                    additionalLines.push({ type: 'custom', text: line })
+                }
+            }
+
+            return {
+                id: `lyric-${index}`,
+                text: mainText,
+                timestamp: null,
+                endTime: null,
+                isActive: false,
+                phonetic: phonetic || undefined,
+                translation: translation || undefined,
+                notes: notes || undefined,
+                additionalLines: additionalLines.length > 0 ? additionalLines : undefined
+            }
+        })
+    }
+
     const handleSubmit = async (values: FormValues): Promise<void> => {
         if (!audioFile) {
             message.error('Vui lòng chọn file âm thanh')
@@ -176,12 +322,10 @@ const AudioLyricsInput: React.FC = () => {
             return
         }
 
-        const lyrics = values.lyrics.split('\n')
-            .map(line => line.trim())
-            .filter(line => line.length > 0)
+        const lyrics = processLyrics(values.lyrics, groupingMode)
 
         if (lyrics.length === 0) {
-            message.error('Vui lòng nhập ít nhất một dòng lời bài hát')
+            message.error('Vui lòng nhập ít nhất một lời bài hát')
             return
         }
 
@@ -194,13 +338,18 @@ const AudioLyricsInput: React.FC = () => {
 
             // Create project data with reference to audio in LocalForage
             const projectData: ProjectData = {
+                id: sessionId,
                 songTitle: values.songTitle || 'Untitled',
                 artist: values.artist || 'Unknown Artist',
                 lyrics,
+                audioFile: audioFile,
                 audioDataUrl: '', // Empty to save space
                 audioFileName: audioFile.name,
                 audioFileType: audioFile.type,
-                tempAudioId: sessionId // Reference to audio in LocalForage
+                tempAudioId: sessionId, // Reference to audio in LocalForage
+                groupingMode: groupingMode,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
             }
 
             // Save lightweight project data to sessionStorage
@@ -551,6 +700,162 @@ const AudioLyricsInput: React.FC = () => {
                                     />
                                 </Form.Item>
 
+                                {/* Lyrics Grouping Controls */}
+                                <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                                    <div className="flex items-center space-x-2 mb-3">
+                                        <FileTextOutlined className="text-blue-400" />
+                                        <Text className="text-blue-400 font-medium">Cách gom nhóm lời bài hát</Text>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div className="flex items-center space-x-3">
+                                            <div className="flex-1">
+                                                <Select
+                                                    value={groupingMode}
+                                                    onChange={setGroupingMode}
+                                                    className="w-full"
+                                                    placeholder="Chọn cách gom nhóm"
+                                                    dropdownStyle={{
+                                                        backgroundColor: '#1f2937',
+                                                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                                                    }}
+                                                >
+                                                    <Option value="line">Mỗi dòng là một lời (mặc định)</Option>
+                                                    <Option value="paragraph">Gom theo đoạn văn (phân cách bởi dòng trống)</Option>
+                                                    <Option value="separator">Gom theo dấu phân cách (--- hoặc ===)</Option>
+                                                </Select>
+                                            </div>
+                                            
+                                            <Form.Item shouldUpdate noStyle>
+                                                {() => {
+                                                    const currentLyrics = form.getFieldValue('lyrics')
+                                                    const suggestedMode = currentLyrics ? analyzeAndSuggestGrouping(currentLyrics) : null
+                                                    const hasSuggestion = suggestedMode && suggestedMode !== groupingMode
+                                                    
+                                                    return hasSuggestion ? (
+                                                        <Tooltip title={`Hệ thống đề xuất sử dụng chế độ "${
+                                                            suggestedMode === 'line' ? 'Mỗi dòng là một lời' :
+                                                            suggestedMode === 'paragraph' ? 'Gom theo đoạn văn' :
+                                                            'Gom theo dấu phân cách'
+                                                        }" dựa trên nội dung đã nhập`}>
+                                                            <Button
+                                                                size="small"
+                                                                type="dashed"
+                                                                className="text-yellow-400 border-yellow-400 hover:bg-yellow-400/10"
+                                                                onClick={() => setGroupingMode(suggestedMode)}
+                                                            >
+                                                                💡 Áp dụng gợi ý
+                                                            </Button>
+                                                        </Tooltip>
+                                                    ) : null
+                                                }}
+                                            </Form.Item>
+                                        </div>
+
+                                        {/* Auto-suggestion indicator */}
+                                        <Form.Item shouldUpdate noStyle>
+                                            {() => {
+                                                const suggestion = getGroupingSuggestion()
+                                                return suggestion ? (
+                                                    <div className="p-2 bg-yellow-500/10 border border-yellow-500/30 rounded text-xs">
+                                                        <Text className="text-yellow-400">
+                                                            🤖 {suggestion}
+                                                        </Text>
+                                                    </div>
+                                                ) : null
+                                            }}
+                                        </Form.Item>
+
+                                        <div className="text-gray-400 text-xs space-y-1">
+                                            {groupingMode === 'line' && (
+                                                <Text className="text-gray-400">
+                                                    Mỗi dòng sẽ là một lời riêng biệt để đồng bộ thời gian
+                                                </Text>
+                                            )}
+                                            {groupingMode === 'paragraph' && (
+                                                <div className="space-y-1">
+                                                    <Text className="text-gray-400">
+                                                        Các dòng liên tiếp sẽ được gom thành một lời, phân cách bởi dòng trống
+                                                    </Text>
+                                                    <Text className="text-gray-400 text-xs">
+                                                        Ví dụ: Lời chính + phiên âm hoặc bính âm
+                                                    </Text>
+                                                </div>
+                                            )}
+                                            {groupingMode === 'separator' && (
+                                                <div className="space-y-1">
+                                                    <Text className="text-gray-400">
+                                                        Sử dụng dấu "---" hoặc "===" trên dòng riêng để phân tách các lời
+                                                    </Text>
+                                                    <Text className="text-gray-400 text-xs">
+                                                        Phù hợp khi có nhiều thông tin cho mỗi câu hát
+                                                    </Text>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Lyrics Preview */}
+                                <Form.Item shouldUpdate>
+                                    {() => {
+                                        const preview = previewLyrics()
+                                        return preview.length > 0 ? (
+                                            <div className="mb-4 p-4 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                                                <div className="flex items-center space-x-2 mb-3">
+                                                    <FileTextOutlined className="text-orange-400" />
+                                                    <Text className="text-orange-400 font-medium">
+                                                        Xem trước: {preview.length} lời bài hát
+                                                    </Text>
+                                                </div>
+                                <div className="max-h-40 overflow-y-auto space-y-2">
+                                                    {preview.slice(0, 5).map((lyric, index) => {
+                                                        return (
+                                                            <div key={lyric.id} className="p-3 bg-gray-800/50 rounded text-sm">
+                                                                <div className="flex items-start space-x-2">
+                                                                    <Text className="text-orange-400 font-mono text-xs flex-shrink-0">
+                                                                        [{index + 1}]
+                                                                    </Text>
+                                                                    <div className="flex-1">
+                                                                        <div className="text-white font-medium">
+                                                                            {lyric.text}
+                                                                        </div>
+                                                                        {lyric.phonetic && (
+                                                                            <div className="text-blue-300 text-xs mt-1">
+                                                                                Phiên âm: ({lyric.phonetic})
+                                                                            </div>
+                                                                        )}
+                                                                        {lyric.translation && (
+                                                                            <div className="text-green-300 text-xs mt-1">
+                                                                                Dịch: [{lyric.translation}]
+                                                                            </div>
+                                                                        )}
+                                                                        {lyric.notes && (
+                                                                            <div className="text-yellow-300 text-xs mt-1">
+                                                                                Ghi chú: {lyric.notes}
+                                                                            </div>
+                                                                        )}
+                                                                        {lyric.additionalLines && lyric.additionalLines.length > 0 && (
+                                                                            <div className="text-gray-400 text-xs mt-1">
+                                                                                +{lyric.additionalLines.length} dòng bổ sung
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                    {preview.length > 5 && (
+                                                        <Text className="text-gray-400 text-xs">
+                                                            ... và {preview.length - 5} lời khác
+                                                        </Text>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ) : null
+                                    }}
+                                </Form.Item>
+
                                 {/* Text Formatting Controls */}
                                 <div className="mb-4 p-4 bg-purple-500/10 border border-purple-500/30 rounded-lg">
                                     <div className="flex items-center space-x-2 mb-3">
@@ -598,16 +903,87 @@ const AudioLyricsInput: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                                    <Title level={5} className="!text-blue-400 !mb-2">
-                                        💡 Gợi ý:
+                                <div className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+                                    <Title level={5} className="!text-green-400 !mb-2">
+                                        💡 Hướng dẫn nhập lyrics đa dòng:
                                     </Title>
-                                    <ul className="text-gray-300 text-sm space-y-1">
-                                        <li>• Mỗi dòng lời bài hát nên được viết trên một dòng riêng</li>
-                                        <li>• Các dòng trống sẽ được tự động loại bỏ</li>
-                                        <li>• Sử dụng công cụ định dạng để chuẩn hóa văn bản</li>
-                                        <li>• Bạn có thể chỉnh sửa lời bài hát sau khi bắt đầu đồng bộ</li>
-                                    </ul>
+                                    <div className="text-gray-300 text-sm space-y-4">
+                                        <div>
+                                            <Text className="text-green-400 font-medium">Mỗi dòng là một lời (cơ bản):</Text>
+                                            <div className="mt-1 p-2 bg-gray-800/50 rounded text-xs font-mono">
+                                                Lời đầu tiên<br/>
+                                                Lời thứ hai<br/>
+                                                Lời thứ ba
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <Text className="text-green-400 font-medium">Với phiên âm (trong ngoặc đơn):</Text>
+                                            <div className="mt-1 p-2 bg-gray-800/50 rounded text-xs font-mono">
+                                                Tôi yêu Việt Nam<br/>
+                                                (Toi yeu Viet Nam)<br/>
+                                                <br/>
+                                                Con đường tôi đi<br/>
+                                                (Con duong toi di)
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <Text className="text-green-400 font-medium">Với dịch nghĩa (trong ngoặc vuông):</Text>
+                                            <div className="mt-1 p-2 bg-gray-800/50 rounded text-xs font-mono">
+                                                春天来了<br/>
+                                                [Mùa xuân đến rồi]<br/>
+                                                <br/>
+                                                花开满园<br/>
+                                                [Hoa nở khắp vườn]
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <Text className="text-green-400 font-medium">Với ghi chú (bắt đầu bằng #, //, Note:):</Text>
+                                            <div className="mt-1 p-2 bg-gray-800/50 rounded text-xs font-mono">
+                                                Hello world<br/>
+                                                // Lời chào thế giới<br/>
+                                                <br/>
+                                                How are you?<br/>
+                                                # Bạn khỏe không?
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <Text className="text-green-400 font-medium">Kết hợp đầy đủ:</Text>
+                                            <div className="mt-1 p-2 bg-gray-800/50 rounded text-xs font-mono">
+                                                Hello beautiful world<br/>
+                                                (He-lo biu-ti-ful world)<br/>
+                                                [Xin chào thế giới xinh đẹp]<br/>
+                                                // Lời chào phổ biến
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <Text className="text-green-400 font-medium">Dùng dấu phân cách (--- hoặc ===):</Text>
+                                            <div className="mt-1 p-2 bg-gray-800/50 rounded text-xs font-mono">
+                                                Câu hát đầu tiên<br/>
+                                                (Phiên âm)<br/>
+                                                [Dịch nghĩa]<br/>
+                                                ---<br/>
+                                                Câu hát thứ hai<br/>
+                                                (Phiên âm)<br/>
+                                                [Dịch nghĩa]
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/30 rounded">
+                                            <Text className="text-blue-400 font-medium">✨ Tự động phát hiện:</Text>
+                                            <ul className="space-y-1 mt-2 text-xs">
+                                                <li>• <span className="text-blue-300">Phiên âm:</span> Nội dung trong ngoặc đơn ()</li>
+                                                <li>• <span className="text-green-300">Dịch nghĩa:</span> Nội dung trong ngoặc vuông []</li>
+                                                <li>• <span className="text-yellow-300">Ghi chú:</span> Dòng bắt đầu bằng #, //, Note:, Ghi chú:</li>
+                                                <li>• <span className="text-purple-300">Dấu phân cách:</span> ---, === trên dòng riêng</li>
+                                                <li>• <span className="text-orange-300">Tự động gợi ý:</span> Hệ thống sẽ đề xuất cách gom nhóm phù hợp</li>
+                                            </ul>
+                                        </div>
+                                    </div>
                                 </div>
                             </Card>
                         </motion.div>

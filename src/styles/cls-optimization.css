@@ -1,0 +1,63 @@
+/* CSS optimizations to reduce Cumulative Layout Shift (CLS) */
+
+/* Apply layout containment globally */
+.container {
+  contain: layout style;
+}
+
+/* Prevent layout shifts from images */
+img {
+  contain: layout;
+}
+
+/* Optimize card components */
+.ant-card {
+  contain: layout style;
+}
+
+/* Optimize scroll containers */
+.scroll-container {
+  contain: layout style paint;
+  transform: translateZ(0); /* Hardware acceleration */
+  will-change: scroll-position;
+}
+
+/* Prevent font loading shifts */
+body {
+  font-display: swap;
+}
+
+/* Reduce motion for accessibility and performance */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Optimize loading states */
+.skeleton-loading {
+  contain: layout;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
+}
+
+/* Critical rendering path optimization */
+.critical-layout {
+  contain: layout style;
+  will-change: auto;
+}
+
+/* Prevent reflow from dynamic content */
+.fixed-dimensions {
+  contain: size layout style;
+}

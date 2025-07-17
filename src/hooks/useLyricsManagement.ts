@@ -24,9 +24,14 @@ export const useLyricsManagement = (
     setSyncedLyrics(prev => {
       const newLyrics = [...prev]
       newLyrics.splice(index, 0, {
+        id: `lyric-${Date.now()}-${Math.random()}`,
         text: '',
         timestamp: null,
-        endTime: null
+        endTime: null,
+        phonetic: '',
+        translation: '',
+        notes: '',
+        additionalLines: []
       })
       return newLyrics
     })
@@ -40,9 +45,14 @@ export const useLyricsManagement = (
     setSyncedLyrics(prev => {
       const newLyrics = [...prev]
       newLyrics.splice(index + 1, 0, {
+        id: `lyric-${Date.now()}-${Math.random()}`,
         text: '',
         timestamp: null,
-        endTime: null
+        endTime: null,
+        phonetic: '',
+        translation: '',
+        notes: '',
+        additionalLines: []
       })
       return newLyrics
     })

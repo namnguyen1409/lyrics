@@ -17,6 +17,9 @@ interface LyricsListProps {
   onAddLineBelow: (index: number) => void
   onDeleteLine: (index: number) => void
   onUpdateText: (index: number, text: string) => void
+  onUpdatePhonetic: (index: number, phonetic: string) => void
+  onUpdateTranslation: (index: number, translation: string) => void
+  onUpdateNotes: (index: number, notes: string) => void
   formatTime: (time: number | null) => string
 }
 
@@ -32,6 +35,9 @@ const LyricsList: React.FC<LyricsListProps> = ({
   onAddLineBelow,
   onDeleteLine,
   onUpdateText,
+  onUpdatePhonetic,
+  onUpdateTranslation,
+  onUpdateNotes,
   formatTime
 }) => {
   return (
@@ -73,6 +79,9 @@ const LyricsList: React.FC<LyricsListProps> = ({
             onAddLineBelow={onAddLineBelow}
             onDeleteLine={onDeleteLine}
             onUpdateText={onUpdateText}
+            onUpdatePhonetic={onUpdatePhonetic}
+            onUpdateTranslation={onUpdateTranslation}
+            onUpdateNotes={onUpdateNotes}
             formatTime={formatTime}
           />
         ))}

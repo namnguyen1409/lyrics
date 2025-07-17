@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { motion } from 'framer-motion'
 import {
   Button,
   Input,
@@ -35,25 +34,10 @@ interface LyricItemProps {
   onAddLineBelow: (index: number) => void
   onDeleteLine: (index: number) => void
   onUpdateText: (index: number, text: string) => void
+  onUpdatePhonetic: (index: number, phonetic: string) => void
+  onUpdateTranslation: (index: number, translation: string) => void
+  onUpdateNotes: (index: number, notes: string) => void
   formatTime: (time: number | null) => string
-}
-
-const lyricItemVariants = {
-  inactive: {
-    scale: 1,
-    opacity: 0.8,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    transition: { duration: 0.1 }
-  },
-  active: {
-    scale: 1.005,
-    opacity: 1,
-    backgroundColor: 'rgba(99, 102, 241, 0.2)',
-    transition: {
-      duration: 0.15,
-      ease: "easeOut" as const
-    }
-  }
 }
 
 const LyricItem = React.memo<LyricItemProps>(({
@@ -68,17 +52,35 @@ const LyricItem = React.memo<LyricItemProps>(({
   onAddLineBelow,
   onDeleteLine,
   onUpdateText,
+  onUpdatePhonetic,
+  onUpdateTranslation,
+  onUpdateNotes,
   formatTime
 }) => {
   const [isEditing, setIsEditing] = useState(false)
   const [editText, setEditText] = useState(lyric.text)
+  const [isEditingPhonetic, setIsEditingPhonetic] = useState(false)
+  const [editPhonetic, setEditPhonetic] = useState(lyric.phonetic || '')
+  const [isEditingTranslation, setIsEditingTranslation] = useState(false)
+  const [editTranslation, setEditTranslation] = useState(lyric.translation || '')
+  const [isEditingNotes, setIsEditingNotes] = useState(false)
+  const [editNotes, setEditNotes] = useState(lyric.notes || '')
 
-  // Update editText when lyric.text changes (but not when user is editing)
+  // Update edit states when lyric changes (but not when user is editing)
   useEffect(() => {
     if (!isEditing) {
       setEditText(lyric.text)
     }
-  }, [lyric.text, isEditing])
+    if (!isEditingPhonetic) {
+      setEditPhonetic(lyric.phonetic || '')
+    }
+    if (!isEditingTranslation) {
+      setEditTranslation(lyric.translation || '')
+    }
+    if (!isEditingNotes) {
+      setEditNotes(lyric.notes || '')
+    }
+  }, [lyric, isEditing, isEditingPhonetic, isEditingTranslation, isEditingNotes])
 
   const handleClick = useCallback(() => {
     if (!isEditing) {
@@ -152,19 +154,75 @@ const LyricItem = React.memo<LyricItemProps>(({
     }, 100)
   }, [isEditing, handleSaveEdit])
 
+  // Phonetic editing handlers
+  const handleStartEditPhonetic = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIsEditingPhonetic(true)
+    setEditPhonetic(lyric.phonetic || '')
+  }, [lyric.phonetic])
+
+  const handleSavePhonetic = useCallback(() => {
+    onUpdatePhonetic(index, editPhonetic.trim())
+    setIsEditingPhonetic(false)
+  }, [onUpdatePhonetic, index, editPhonetic])
+
+  const handleCancelPhonetic = useCallback(() => {
+    setIsEditingPhonetic(false)
+    setEditPhonetic(lyric.phonetic || '')
+  }, [lyric.phonetic])
+
+  // Translation editing handlers
+  const handleStartEditTranslation = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIsEditingTranslation(true)
+    setEditTranslation(lyric.translation || '')
+  }, [lyric.translation])
+
+  const handleSaveTranslation = useCallback(() => {
+    onUpdateTranslation(index, editTranslation.trim())
+    setIsEditingTranslation(false)
+  }, [onUpdateTranslation, index, editTranslation])
+
+  const handleCancelTranslation = useCallback(() => {
+    setIsEditingTranslation(false)
+    setEditTranslation(lyric.translation || '')
+  }, [lyric.translation])
+
+  // Notes editing handlers
+  const handleStartEditNotes = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIsEditingNotes(true)
+    setEditNotes(lyric.notes || '')
+  }, [lyric.notes])
+
+  const handleSaveNotes = useCallback(() => {
+    onUpdateNotes(index, editNotes.trim())
+    setIsEditingNotes(false)
+  }, [onUpdateNotes, index, editNotes])
+
+  const handleCancelNotes = useCallback(() => {
+    setIsEditingNotes(false)
+    setEditNotes(lyric.notes || '')
+  }, [lyric.notes])
+
   return (
-    <motion.div
+    <div
       data-index={index}
-      variants={lyricItemVariants}
-      animate={isActive ? 'active' : 'inactive'}
-      className="mb-3 p-4 rounded-lg border border-white/10 cursor-pointer"
+      className={`mb-3 p-4 rounded-lg border border-white/10 cursor-pointer min-h-[70px] transition-all duration-200 ${
+        isActive
+          ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-purple-400/50 shadow-lg'
+          : 'bg-white/5 hover:bg-white/10 hover:border-white/20'
+      }`}
+      style={{ 
+        contain: 'layout style', // CSS containment to prevent layout shifts
+        minHeight: '70px' // Ensure consistent minimum height
+      }}
       onClick={handleClick}
-      layout={false} // Disable layout animations for better performance
-      whileHover={isEditing ? {} : { scale: 1.002 }} // Minimal hover effect, disabled when editing
     >
       <Row justify="space-between" align="middle">
         <Col flex="auto">
-          <Space direction="vertical" className="w-full">
+          <Space direction="vertical" className="w-full" size="small">
+            {/* Main lyrics text */}
             {isEditing ? (
               <Input
                 value={editText}
@@ -180,6 +238,77 @@ const LyricItem = React.memo<LyricItemProps>(({
                 {lyric.text || <span className="text-gray-400 italic">Dòng trống</span>}
               </Text>
             )}
+
+            {/* Phonetic text */}
+            {(lyric.phonetic || isEditingPhonetic) && (
+              <div className="ml-4">
+                {isEditingPhonetic ? (
+                  <Space>
+                    <Input
+                      value={editPhonetic}
+                      onChange={(e) => setEditPhonetic(e.target.value)}
+                      className="text-sm"
+                      placeholder="Phiên âm..."
+                      size="small"
+                    />
+                    <Button size="small" type="primary" icon={<CheckOutlined />} onClick={handleSavePhonetic} />
+                    <Button size="small" icon={<CloseOutlined />} onClick={handleCancelPhonetic} />
+                  </Space>
+                ) : (
+                  <Text className="text-blue-300 text-sm italic" onClick={handleStartEditPhonetic}>
+                    📢 {lyric.phonetic}
+                  </Text>
+                )}
+              </div>
+            )}
+
+            {/* Translation */}
+            {(lyric.translation || isEditingTranslation) && (
+              <div className="ml-4">
+                {isEditingTranslation ? (
+                  <Space>
+                    <Input
+                      value={editTranslation}
+                      onChange={(e) => setEditTranslation(e.target.value)}
+                      className="text-sm"
+                      placeholder="Bản dịch..."
+                      size="small"
+                    />
+                    <Button size="small" type="primary" icon={<CheckOutlined />} onClick={handleSaveTranslation} />
+                    <Button size="small" icon={<CloseOutlined />} onClick={handleCancelTranslation} />
+                  </Space>
+                ) : (
+                  <Text className="text-green-300 text-sm" onClick={handleStartEditTranslation}>
+                    🌐 {lyric.translation}
+                  </Text>
+                )}
+              </div>
+            )}
+
+            {/* Notes */}
+            {(lyric.notes || isEditingNotes) && (
+              <div className="ml-4">
+                {isEditingNotes ? (
+                  <Space>
+                    <Input
+                      value={editNotes}
+                      onChange={(e) => setEditNotes(e.target.value)}
+                      className="text-sm"
+                      placeholder="Ghi chú..."
+                      size="small"
+                    />
+                    <Button size="small" type="primary" icon={<CheckOutlined />} onClick={handleSaveNotes} />
+                    <Button size="small" icon={<CloseOutlined />} onClick={handleCancelNotes} />
+                  </Space>
+                ) : (
+                  <Text className="text-yellow-300 text-sm" onClick={handleStartEditNotes}>
+                    📝 {lyric.notes}
+                  </Text>
+                )}
+              </div>
+            )}
+
+            {/* Timestamp info */}
             <Space>
               <Tag color={lyric.timestamp !== null ? 'green' : 'default'}>
                 Start: {formatTime(lyric.timestamp)}
@@ -250,7 +379,41 @@ const LyricItem = React.memo<LyricItemProps>(({
               </Tooltip>
             </Space>
             
-            {/* Row 2: Timestamp controls */}
+            {/* Row 2: Additional fields */}
+            <Space size="small">
+              <Tooltip title={lyric.phonetic ? "Chỉnh sửa phiên âm" : "Thêm phiên âm"}>
+                <Button
+                  size="small"
+                  icon={<EditOutlined />}
+                  onClick={handleStartEditPhonetic}
+                  className={lyric.phonetic ? "text-blue-400 hover:text-blue-300" : "text-gray-400 hover:text-blue-300"}
+                >
+                  📢
+                </Button>
+              </Tooltip>
+              <Tooltip title={lyric.translation ? "Chỉnh sửa bản dịch" : "Thêm bản dịch"}>
+                <Button
+                  size="small"
+                  icon={<EditOutlined />}
+                  onClick={handleStartEditTranslation}
+                  className={lyric.translation ? "text-green-400 hover:text-green-300" : "text-gray-400 hover:text-green-300"}
+                >
+                  🌐
+                </Button>
+              </Tooltip>
+              <Tooltip title={lyric.notes ? "Chỉnh sửa ghi chú" : "Thêm ghi chú"}>
+                <Button
+                  size="small"
+                  icon={<EditOutlined />}
+                  onClick={handleStartEditNotes}
+                  className={lyric.notes ? "text-yellow-400 hover:text-yellow-300" : "text-gray-400 hover:text-yellow-300"}
+                >
+                  📝
+                </Button>
+              </Tooltip>
+            </Space>
+            
+            {/* Row 3: Timestamp controls */}
             <Space size="small">
               <Tooltip title="Đặt timestamp hiện tại">
                 <Button
@@ -281,7 +444,7 @@ const LyricItem = React.memo<LyricItemProps>(({
           </Space>
         </Col>
       </Row>
-    </motion.div>
+    </div>
   )
 })
 
